@@ -1,0 +1,173 @@
+---
+title: "Introduction to reditR"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to reditR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+## Overview
+
+**reditR** identifies differentially RNA-edited (DRE) sites in bulk or
+single-cell pseudobulk RNA-seq data. It takes per-site read-count tables
+produced by upstream detection tools (e.g., SPRINT) and offers **three
+independent statistical tests** -- a binomial GLMM, Fisher's exact test, and
+a Wilcoxon rank-sum test -- each run on every site and independently
+FDR-corrected. There is no gating of one test on another and no combined
+verdict: you choose which test(s) suit your experimental design.
+
+## End-to-end example
+
+### 1. Read the data
+
+```{r}
+library(reditR)
+
+ed <- read_editing_table(
+  system.file("extdata", "example_editing.txt", package = "reditR")
+)
+mt <- read_metadata(
+  system.file("extdata", "example_metadata.txt", package = "reditR"),
+  reference_level = "control"
+)
+
+head(ed)
+mt
+```
+
+### 2. Filter by coverage and cluster presence
+
+`filter_editing_sites()` keeps rows where total ≥ `min_coverage` AND edited ≥
+`min_edited`, then retains only sites present in ≥ `min_groups` samples.
+The clustered subset (sites within `cluster_window` bp of a neighbour on the
+same chromosome) is returned as `$clustered` — this is the standard input for
+`differential_editing()`.
+
+```{r}
+# Write the example data to a temp file to demonstrate filter_editing_sites()
+tmp_editing <- tempfile(fileext = ".txt")
+write.table(as.data.frame(ed), tmp_editing, sep = "\t", row.names = FALSE, quote = FALSE)
+
+filt <- filter_editing_sites(tmp_editing, min_coverage = 10, min_edited = 1, min_groups = 2)
+cat("All filtered sites:", nrow(filt$all), "\n")
+cat("Clustered sites:   ", nrow(filt$clustered), "\n")
+```
+
+### 3. Run differential analysis
+
+`differential_editing()` accepts a file path to the filtered count table plus
+a metadata file, so we write the example data to temp files for this demo.
+The `test` argument selects which test(s) actually get computed -- here we
+request all three so we can compare them side by side.
+
+```{r}
+tmp_meta <- tempfile(fileext = ".txt")
+write.table(as.data.frame(mt), tmp_meta, sep = "\t", row.names = FALSE, quote = FALSE)
+
+res <- differential_editing(
+  data_path = tmp_editing,
+  meta_path = tmp_meta,
+  test      = c("glmm", "fisher", "wilcoxon"),
+  verbose   = FALSE
+)
+print(res)
+```
+
+- **`chr1_100`** has a large control → diabetic editing shift (~6% vs ~23%) and
+  is correctly flagged `GLMM_sig = TRUE`.
+- **`chr1_200`** shows no difference and is `GLMM_sig = FALSE`.
+
+Only asking for one test skips fitting the others entirely -- useful once
+you've decided which test fits your design:
+
+```{r}
+res_wilcox_only <- differential_editing(
+  data_path = tmp_editing,
+  meta_path = tmp_meta,
+  test      = "wilcoxon",
+  verbose   = FALSE
+)
+names(res_wilcox_only)
+```
+
+### 4. Effect sizes
+
+```{r}
+eff <- editing_difference(tmp_editing, meta_path = tmp_meta)
+print(eff)
+```
+
+## Choosing a test
+
+reditR does not pick a test for you, because no single test was found to be
+reliable across every design. The guidance below comes from running
+permutation-based and parametric null-calibration simulations (relabelling
+real replicates under the null, and simulating data under a known-null
+generative model while sweeping between-replicate variance) across three
+independent datasets:
+
+- **GLMM** (`cbind(edited, unedited) ~ condition + (1|sample)`) is the
+  primary test (Srivastava et al. 2017). It was severely anti-conservative
+  -- up to ~9-10x the nominal false-positive rate -- in a design where
+  between-replicate variance was high relative to the number of independent
+  control replicates (e.g. a confounded or very-small-n design). In a
+  balanced, adequately-replicated design the same test was only mildly
+  anti-conservative.
+- **Fisher's exact test** pools reads across samples per condition. It is
+  independent of GLMM, but was anti-conservative to a similar degree
+  whenever real between-replicate variance was present, regardless of
+  dataset -- and unlike GLMM, adding more replicates did not fix it.
+- **Wilcoxon rank-sum** on per-sample editing ratios was the most
+  consistently well-calibrated test across every design checked, at the
+  cost of lower power and a coarse p-value floor at small sample sizes
+  (e.g. minimum achievable p-value ≈ 0.05 at n = 3 vs 3, ≈ 0.002 at n = 6
+  vs 6).
+
+Practical takeaway: a design with few, unbalanced, or confounded replicates
+should lean on Wilcoxon; a well-powered balanced design can reasonably use
+GLMM; Fisher should be treated cautiously whenever real between-replicate
+variance is plausible. If you request more than one test, compare the
+columns directly rather than trusting either test in isolation -- and build
+your own combined criterion if you want one:
+
+```{r}
+res[res$GLMM_sig & res$Wilcox_sig, ]
+```
+
+## Simulation and validation
+
+`validate_against_truth()` reports false-positive rate and power
+independently for whichever test(s) were requested in `differential_editing()`
+-- there is no combined metric, matching the independent-tests design above.
+
+```{r}
+sim <- simulate_editing_data(
+  n_null   = 50,
+  n_effects = c("0.10" = 20),
+  seed     = 1
+)
+str(sim, max.level = 1)
+```
+
+```{r}
+# Write sim data to temp files
+tmp_sim_ed <- tempfile(fileext = ".txt")
+tmp_sim_mt <- tempfile(fileext = ".txt")
+write.table(as.data.frame(sim$editing),  tmp_sim_ed, sep = "\t", row.names = FALSE, quote = FALSE)
+write.table(as.data.frame(sim$metadata), tmp_sim_mt, sep = "\t", row.names = FALSE, quote = FALSE)
+
+res2 <- differential_editing(tmp_sim_ed, tmp_sim_mt,
+                             test = c("glmm", "wilcoxon"), verbose = FALSE)
+val  <- validate_against_truth(res2, sim$truth)
+print(val)
+```
+
+```{r, include=FALSE}
+# Clean up temp files
+unlink(c(tmp_editing, tmp_meta, tmp_sim_ed, tmp_sim_mt))
+```

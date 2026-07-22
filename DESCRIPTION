@@ -1,0 +1,40 @@
+Package: reditR
+Type: Package
+Title: Differential RNA Editing Analysis for Single-Cell Pseudobulk Data
+Version: 0.2.0
+Authors@R:
+    person(given = "Saanvi",
+           family = "Jiteendra",
+           role = c("aut", "cre"),
+           email = "sj1825@ic.ac.uk")
+Description: Statistical tools for detecting differentially edited RNA sites
+    in single-cell RNA-seq data aggregated by cluster (pseudobulk). Offers
+    three independent significance tests -- a binomial generalised linear
+    mixed model (GLMM), Fisher's exact test, and Wilcoxon rank-sum -- each
+    run on all sites and independently FDR-corrected, so the user can pick
+    whichever test suits their experimental design rather than trusting a
+    single combined verdict. Designed for use downstream of editing-site
+    detection pipelines such as SPRINT, working from per-site read-count
+    tables. Includes simulation utilities for power analysis and method
+    validation.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Depends:
+    R (>= 4.0.0)
+Imports:
+    data.table,
+    dplyr,
+    lme4,
+    parallel,
+    stats,
+    tidyr
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+URL: https://github.com/saanvijeet/reditR
+BugReports: https://github.com/saanvijeet/reditR/issues
+Config/roxygen2/version: 8.0.0
