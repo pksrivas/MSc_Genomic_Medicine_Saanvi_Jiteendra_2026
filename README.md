@@ -4,8 +4,7 @@
 
 reditR provides statistical tools for detecting differentially RNA-edited (DRE)
 sites from SPRINT-derived read-count tables. It is the statistical downstream
-layer of the SPRINT pipeline — it does not run alignments or detect editing
-sites itself.
+layer of the SPRINT pipeline. 
 
 ## Installation
 
@@ -34,7 +33,7 @@ res <- differential_editing(
   out_path  = "DRE_results.txt"
 )
 
-# 4. Effect sizes
+# 4. Effect sizes - computes the mean editing ratio for each site and condition
 eff <- editing_difference("filtered_sites_clustered.txt", meta_path = "sample_metadata.txt")
 head(eff)
 ```
@@ -53,8 +52,7 @@ Run it on your HPC to produce `all_samples_editing.txt`, then call
 ## Methodology
 
 reditR offers **three independent significance tests**, each run on every
-site and independently Benjamini-Hochberg FDR corrected. There is no gating
-of one test on another's result and no combined verdict column — pick
+site and independently Benjamini-Hochberg FDR corrected. Pick
 whichever test(s) suit your experimental design with the `test` argument
 (any subset of `c("glmm", "fisher", "wilcoxon")`), and compare the
 `<Test>_sig`/`<Test>_FDR` columns you asked for directly.
