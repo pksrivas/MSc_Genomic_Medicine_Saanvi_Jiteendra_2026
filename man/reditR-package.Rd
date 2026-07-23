@@ -4,9 +4,9 @@
 \name{reditR-package}
 \alias{reditR}
 \alias{reditR-package}
-\title{reditR: Differential RNA Editing Analysis for Single-Cell Pseudobulk Data}
+\title{reditR: Differential RNA Editing Analysis for Bulk and Single-Cell Pseudobulk Data}
 \description{
-Statistical tools for detecting differentially edited RNA sites in single-cell RNA-seq data aggregated by cluster (pseudobulk). Offers three independent significance tests -- a binomial generalised linear mixed model (GLMM), Fisher's exact test, and Wilcoxon rank-sum -- each run on all sites and independently FDR-corrected, so the user can pick whichever test suits their experimental design rather than trusting a single combined verdict. Designed for use downstream of editing-site detection pipelines such as SPRINT, working from per-site read-count tables. Includes simulation utilities for power analysis and method validation.
+Statistical tools for detecting differentially edited RNA sites from per-site, per-sample read-count tables, whether those samples are real bulk RNA-seq replicates or single-cell data aggregated by cluster (pseudobulk) -- the underlying binomial count-table format is the same either way. Offers three independent significance tests -- a binomial generalised linear mixed model (GLMM), Fisher's exact test, and Wilcoxon rank-sum -- each run on all sites and independently FDR-corrected, so the user can pick whichever test suits their experimental design rather than trusting a single combined verdict. Designed for use downstream of editing-site detection pipelines such as SPRINT. Includes simulation utilities for power analysis and method validation.
 }
 \seealso{
 Useful links:
