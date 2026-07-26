@@ -1,3 +1,15 @@
+# reditR 0.2.1
+
+* `differential_editing()` gains a `random_effects` argument controlling
+  the random-effects side of the GLMM formula (default `"(1 | sample)"`,
+  unchanged behaviour). Lets pseudobulk callers pass crossed or nested
+  terms, e.g. `"(1 | library) + (1 | cluster_id)"`, using whatever
+  grouping columns are present in the data -- a single `sample`-level
+  term pseudoreplicates when multiple pseudobulk units share a library
+  and/or cluster identity. Errors up front (before fitting anything) if
+  `random_effects` references a column not present in the data, rather
+  than silently returning `NA` for every site.
+
 # reditR 0.2.0
 
 * **Breaking change:** `differential_editing()` redesigned around three

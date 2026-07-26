@@ -12,6 +12,7 @@ differential_editing(
   test = c("glmm", "fisher", "wilcoxon"),
   reference_level = "control",
   case_level = "diabetic",
+  random_effects = "(1 | sample)",
   min_obs = 4L,
   fdr_threshold = 0.05,
   n_cores = 1L,
@@ -45,6 +46,18 @@ Default \code{"control"}.}
 
 \item{case_level}{Condition label for the case/disease group. Default
 \code{"diabetic"}.}
+
+\item{random_effects}{Character string giving the random-effects side of
+the GLMM formula (everything after \code{condition +}), passed through
+to \code{lme4::glmer()}. Default \code{"(1 | sample)"} -- one random
+intercept per row, correct when each \code{sample} is one true
+biological replicate (bulk data). For single-cell pseudobulk data,
+where multiple pseudobulk units (e.g. cluster x library) share a
+library and/or a cluster identity, a single \code{sample}-level term
+pseudoreplicates -- pass crossed or nested terms instead, e.g.
+\code{"(1 | library) + (1 | cluster_id)"}, using whatever grouping
+columns are present in \code{data_path}. Ignored if \code{"glmm"} is
+not in \code{test}.}
 
 \item{min_obs}{Minimum number of observations required to test a site
 with the GLMM. Default 4.}

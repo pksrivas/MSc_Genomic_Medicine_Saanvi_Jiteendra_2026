@@ -78,3 +78,71 @@ test_that("summary file is written with expected rows when summary_path is provi
   expect_true("Wilcox_sig" %in% sumdt$metric)
   expect_false("monte_carlo_pvalue" %in% sumdt$metric)
 })
+
+test_that("random_effects supports crossed terms for pseudobulk data", {
+  set.seed(42)
+  libraries  <- c("lib_c1", "lib_c2", "lib_d1", "lib_d2")
+  conditions <- c("control", "control", "dehydrated", "dehydrated")
+  clusters   <- paste0("cluster_", 1:3)
+
+  rows <- do.call(rbind, lapply(seq_along(libraries), function(i) {
+    cond <- conditions[i]
+    data.frame(
+      site       = "chr1_1",
+      sample     = paste0(libraries[i], "_", clusters),
+      library    = libraries[i],
+      cluster_id = clusters,
+      condition  = cond,
+      edited     = if (cond == "dehydrated") rpois(3, 8) + 2 else rpois(3, 2),
+      total      = 40,
+      stringsAsFactors = FALSE
+    )
+  }))
+
+  ed_file <- tempfile(fileext = ".txt")
+  on.exit(unlink(ed_file))
+  write.table(rows, ed_file, sep = "\t", row.names = FALSE, quote = FALSE)
+
+  res <- differential_editing(
+    ed_file,
+    test            = "glmm",
+    random_effects  = "(1 | library) + (1 | cluster_id)",
+    reference_level = "control",
+    case_level      = "dehydrated",
+    min_obs         = 4L,
+    verbose         = FALSE
+  )
+
+  expect_s3_class(res, "data.table")
+  expect_true("glmm_pvalue" %in% names(res))
+  expect_false(is.na(res[site == "chr1_1", glmm_pvalue]))
+})
+
+test_that("random_effects referencing a missing column errors before any fitting", {
+  ed_file <- tempfile(fileext = ".txt")
+  on.exit(unlink(ed_file))
+  write.table(
+    data.frame(site = "chr1_1", sample = c("a", "b", "c", "d"),
+               condition = c("control", "control", "dehydrated", "dehydrated"),
+               edited = c(1, 2, 8, 9), total = c(20, 20, 20, 20)),
+    ed_file, sep = "\t", row.names = FALSE, quote = FALSE
+  )
+
+  expect_error(
+    differential_editing(ed_file, test = "glmm",
+                         random_effects  = "(1 | nonexistent_col)",
+                         reference_level = "control", case_level = "dehydrated",
+                         verbose = FALSE),
+    "random_effects references column"
+  )
+})
+
+test_that("default random_effects is unchanged and still matches (1 | sample)", {
+  res <- differential_editing(editing_file, metadata_file,
+                              test = "glmm", verbose = FALSE)
+  res_explicit <- differential_editing(editing_file, metadata_file,
+                                       test = "glmm",
+                                       random_effects = "(1 | sample)",
+                                       verbose = FALSE)
+  expect_equal(res$glmm_pvalue, res_explicit$glmm_pvalue)
+})

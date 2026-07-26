@@ -32,6 +32,17 @@
 #'   Default \code{"control"}.
 #' @param case_level Condition label for the case/disease group. Default
 #'   \code{"diabetic"}.
+#' @param random_effects Character string giving the random-effects side of
+#'   the GLMM formula (everything after \code{condition +}), passed through
+#'   to \code{lme4::glmer()}. Default \code{"(1 | sample)"} -- one random
+#'   intercept per row, correct when each \code{sample} is one true
+#'   biological replicate (bulk data). For single-cell pseudobulk data,
+#'   where multiple pseudobulk units (e.g. cluster x library) share a
+#'   library and/or a cluster identity, a single \code{sample}-level term
+#'   pseudoreplicates -- pass crossed or nested terms instead, e.g.
+#'   \code{"(1 | library) + (1 | cluster_id)"}, using whatever grouping
+#'   columns are present in \code{data_path}. Ignored if \code{"glmm"} is
+#'   not in \code{test}.
 #' @param min_obs Minimum number of observations required to test a site
 #'   with the GLMM. Default 4.
 #' @param fdr_threshold FDR threshold applied to BH-adjusted p-values for
@@ -96,6 +107,7 @@ differential_editing <- function(data_path,
                                   test            = c("glmm", "fisher", "wilcoxon"),
                                   reference_level = "control",
                                   case_level      = "diabetic",
+                                  random_effects  = "(1 | sample)",
                                   min_obs         = 4L,
                                   fdr_threshold   = 0.05,
                                   n_cores         = 1L,
@@ -124,13 +136,25 @@ differential_editing <- function(data_path,
 
   coef_name <- paste0("condition", case_level)
 
+  glmm_formula <- NULL
+  if ("glmm" %in% test) {
+    glmm_formula <- stats::as.formula(
+      paste("cbind(edited, unedited) ~ condition +", random_effects)
+    )
+    re_vars <- setdiff(all.vars(glmm_formula), c("edited", "unedited", "condition"))
+    missing_re_vars <- setdiff(re_vars, names(data))
+    if (length(missing_re_vars) > 0)
+      stop("random_effects references column(s) not found in data: ",
+           paste(missing_re_vars, collapse = ", "))
+  }
+
   # ── Per-site test functions (closures over reference_level/case_level/min_obs) ──
 
   run_glmm <- function(d) {
     if (nrow(d) < min_obs || uniqueN(d$condition) < 2L) return(NULL)
     p <- tryCatch({
       m <- withCallingHandlers(
-        lme4::glmer(cbind(edited, unedited) ~ condition + (1 | sample),
+        lme4::glmer(glmm_formula,
                     data = d, family = binomial,
                     control = lme4::glmerControl(optimizer = "bobyqa",
                                                  optCtrl = list(maxfun = 2e5))),
