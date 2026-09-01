@@ -33,6 +33,21 @@
 # genuine per timepoint test would need building explicitly, and is flagged here
 # rather than quietly approximated.
 #
+# THE TWO MISSING CEC TIMEPOINTS ARE MISSING FOR DIFFERENT REASONS
+#
+# CEC contributes no data at 24 or 36 hours, but not for the same reason, and
+# the two should not be described together.
+#
+# At 24 hours the library exists. CEC3 was sequenced and is deposited in
+# E-MTAB-8145. It is absent here because none of its cells survived the
+# published cluster assignment, so there were no cells to aggregate into
+# pseudobulk units.
+#
+# At 36 hours there is no library at all. No CEC sample was generated for that
+# timepoint, so nothing was ever sequenced.
+#
+# The first is a loss during processing, the second a gap in the experiment.
+#
 # HOW THE ERROR BARS ARE CALCULATED
 #
 # Each point is a difference between two averages, and each of those averages
@@ -64,8 +79,8 @@ raw[, compartment := substr(library, 1, 3)]
 
 # Map each library to its dehydration timepoint. The numbering is consistent
 # across compartments, so library 1 is always the 0 hour control and library 5
-# is always 48 hours. CEC has no library at 24 or 36 hours, which is why those
-# rows are missing rather than an oversight.
+# is always 48 hours. CEC is absent at 24 and 36 hours; see the header for why
+# those two gaps have different causes.
 raw[, timepoint := fcase(
   library %in% c("MEC1", "CEC1", "GEC1"), "0h",
   library %in% c("MEC2", "CEC2", "GEC2"), "12h",
@@ -120,7 +135,7 @@ delta_dt[, timepoint := factor(as.character(timepoint), levels = all_levels)]
 
 PAL <- c(MEC = "#2a78d6", CEC = "#eb6834", GEC = "#1baf7a")
 
-# CEC was not sampled at 24 or 36 hours. Drawing a plain line through its points
+# CEC has no data at 24 or 36 hours. Drawing a plain line through its points
 # would join 12 hours straight to 48 hours and look identical to a line through
 # measured data, implying the trend between them was observed when it was not.
 #

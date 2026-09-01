@@ -13,13 +13,28 @@
 #
 #   0h (control)  MEC1, CEC1, GEC1
 #   12h           MEC2, CEC2, GEC2
-#   24h           MEC3, GEC3          no CEC library at this timepoint
-#   36h           MEC4, GEC4          no CEC library at this timepoint
+#   24h           MEC3, GEC3          CEC3 exists but yielded no cells
+#   36h           MEC4, GEC4          no CEC library was generated
 #   48h           MEC5, CEC5, GEC5
 #
 # This mapping was taken from the one place in the project where it is written
 # down explicitly, rather than inferred from the general description of the
 # experiment as covering 12 to 48 hours.
+#
+# THE TWO MISSING CEC TIMEPOINTS ARE MISSING FOR DIFFERENT REASONS
+#
+# CEC contributes no data at 24 or 36 hours, but not for the same reason, and
+# the two should not be described together.
+#
+# At 24 hours the library exists. CEC3 was sequenced and is deposited in
+# E-MTAB-8145. It is absent here because none of its cells survived the
+# published cluster assignment, so there were no cells to aggregate into
+# pseudobulk units.
+#
+# At 36 hours there is no library at all. No CEC sample was generated for that
+# timepoint, so nothing was ever sequenced.
+#
+# The first is a loss during processing, the second a gap in the experiment.
 #
 # HOW EDITING LEVEL IS MEASURED, AND WHY THE FILTER DIFFERS HERE
 #
@@ -110,7 +125,7 @@ print(lib_summary)
 
 PAL <- c(MEC = "#2a78d6", CEC = "#eb6834", GEC = "#1baf7a")
 
-# CEC was never sampled at 24 or 36 hours. If the points were joined with an
+# CEC has no data at 24 or 36 hours. If the points were joined with an
 # ordinary line, CEC's 12 hour point would connect straight to its 48 hour point
 # and look exactly like a line drawn through measured data, implying the shape
 # between them is known.
